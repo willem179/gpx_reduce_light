@@ -1,2 +1,2 @@
 # gpx_reduce_light
-a version of gpx_reduce depending only on numpy
+- a version of gpx_reduce with no dependencies (only the standard python libraries)
