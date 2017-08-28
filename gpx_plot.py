@@ -2,6 +2,11 @@
 # -*- coding: utf8 -*-
 
 '''
+gpx_plot.py calls gnuplot to draw the gpx-tracks given as arguments.
+Copyright 2017 willem179
+Extracted from the code of "gpx_reduce.py"
+Copyright (C) 2011,2012,2013,2015,2016,2017 travelling_salesman on OpenStreetMap
+
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -19,12 +24,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import datetime
 import sys
 import time
-import numpy as np
-import numpy.linalg as la
 from math import *
 import xml.etree.ElementTree as etree
 from optparse import OptionParser
 
+# the path to the gnuplot binary
+gnuPlotCmd = 'gnuplot'
 
 parser = OptionParser('usage: %prog [options] input-file.gpx')
 (options, args) = parser.parse_args()
@@ -42,6 +47,9 @@ b = 6356752.314245179
 
 timeformat = '%Y-%m-%dT%H:%M:%SZ'
 
+# the linear algebra with lists
+norm = lambda p: sqrt (sum (a * a for a in p))
+
 def rotate(x, y, phi):
     return x*cos(phi) - y*sin(phi), x*sin(phi) + y*cos(phi)
 
@@ -51,7 +59,7 @@ def project_to_meters(lat, lon, latm, lonm):
     lon -= lonm
     xyz = latlonele_to_xyz(lat, lon, 0.0)
     zy = rotate(xyz[2], xyz[1], radians(90 - latm))
-    lat2 = atan2(zy[0], la.norm([zy[1], xyz[0]]))
+    lat2 = atan2(zy[0], norm([zy[1], xyz[0]]))
     lon2 = atan2(xyz[0], -zy[1])
     x_meters = rE * sin(lon2) * (pi / 2.0 - lat2)
     y_meters = -rE * cos(lon2) * (pi / 2.0 - lat2)
@@ -61,18 +69,18 @@ def project_to_meters(lat, lon, latm, lonm):
 def latlonele_to_xyz(lat, lon, ele):
     s = sin(radians(lat))
     c = cos(radians(lat))
-    r = ele + a * b / la.norm([s*a, c*b])
+    r = ele + a * b / norm([s*a, c*b])
     lon = radians(lon)
     return r * c * sin(lon), r * c * (-cos(lon)), r * s
 
 
 def xyz_to_latlonele(x, y, z):
-    r = la.norm([x, y, z])
+    r = norm([x, y, z])
     if (r == 0):
         return 0.0, 0.0, 0.0
-    lat = degrees(atan2(z, la.norm([x, y])))
+    lat = degrees(atan2(z, norm([x, y])))
     lon = degrees(atan2(x, -y))
-    ele = r * (1.0 - a * b / la.norm([a*z, b*x, b*y]))
+    ele = r * (1.0 - a * b / norm([a*z, b*x, b*y]))
     return lat, lon, ele
 
 
@@ -153,8 +161,7 @@ else:
     xmin -= dr
 
 from subprocess import Popen, PIPE
-gnuPlotCmd = ['gnuplot']
-plot = Popen (gnuPlotCmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+plot = Popen ([gnuPlotCmd], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
 range = 'set xrange [%f:%f]\nset yrange [%f:%f]\n' % (xmin, xmax, ymin, ymax)
 plot.stdin.write (range)
