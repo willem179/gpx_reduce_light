@@ -13,6 +13,7 @@ changelog: v1.2: clarity refractoring + speedup for identical points
            v1.6: presets for train etc.
            v1.7: introduced weighting function for elevation errors
            v1.8: speed-dependent distance limit
+           v1.9: removal of all dependencies (lxml, scipy, numpy, pylab)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,11 +29,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-import datetime
-import sys
-import time
-import numpy as np
-import numpy.linalg as la
+import datetime, sys, time, operator
 from math import *
 import xml.etree.ElementTree as etree
 from optparse import OptionParser
@@ -80,37 +77,43 @@ b = 6356752.314245179
 
 timeformat = '%Y-%m-%dT%H:%M:%SZ'
 
-def distance(p1_, pm_, p2_, ele_weight=1.0):
+# the linear algebra with lists
+dot = lambda p1, p2: reduce (operator.add, [a * b for a, b in zip (p1, p2)])
+vmin  = lambda p1, p2: [a - b for a, b in zip (p1, p2)]
+smul = lambda p, c: [a * c for a in p]
+sdiv = lambda p, c: [a / c for a in p]
+norm = lambda p: sqrt (sum (a * a for a in p))
+
+def distance (p1, pm, p2, ele_weight=1.0):
     # returns distance of pm from line between p1 and p2
 
-    p1, pm, p2 = np.array(p1_), np.array(pm_), np.array(p2_)
-    h1, hm, h2 = la.norm(p1), la.norm(pm), la.norm(p2)
+    h1, hm, h2 = norm (p1), norm (pm), norm (p2)
     if ele_weight != 1.0 and min(h1, hm, h2) > 0.0:
         hmean = (h1 + hm + h2) / 3.0
-        p1 *= (ele_weight + (1.0 - ele_weight) * hmean / h1)
-        pm *= (ele_weight + (1.0 - ele_weight) * hmean / hm)
-        p2 *= (ele_weight + (1.0 - ele_weight) * hmean / h2)
-    line = p2 - p1
-    linel = la.norm(line)
-    vm = pm - p1
+        p1 = smul (p1, ele_weight + (1.0 - ele_weight) * hmean / h1)
+        pm = smul (pm, ele_weight + (1.0 - ele_weight) * hmean / hm)
+        p2 = smul (p2, ele_weight + (1.0 - ele_weight) * hmean / h2)
+    line = vmin (p2, p1)
+    linel = norm (line)
+    vm = vmin (pm, p1)
     if linel == 0.0:
-        return la.norm(vm)
-    linem = line / linel
+        return norm (vm)
+    linem = sdiv (line, linel)
     
-    position = np.dot(vm, linem) / linel
+    position = dot (vm, linem) / linel
     if position < 0.0:
-        return la.norm(vm)
+        return norm (vm)
     elif position > 1.0:
-        return la.norm(pm - p2)
+        return norm (vmin (pm, p2))
     else:
-        return la.norm(vm - line * position)
+        return norm (vmin (vm, smul (line, position)))
 
-def latlonele_to_xyz(lat, lon, ele):
-    s = sin(radians(lat))
-    c = cos(radians(lat))
-    r = ele + a * b / la.norm([s*a, c*b])
-    lon = radians(lon)
-    return r * c * sin(lon), r * c * (-cos(lon)), r * s
+def latlonele_to_xyz (lat, lon, ele):
+    s = sin (radians (lat))
+    c = cos (radians (lat))
+    r = ele + a * b / norm ([s*a, c*b])
+    lon = radians (lon)
+    return r * c * sin (lon), r * c * (-cos (lon)), r * s
 
 
 def reduced_track_indices(coordinate_list, timesteps=None):
@@ -151,9 +154,9 @@ def reduced_track_indices(coordinate_list, timesteps=None):
         imin = None
         costmin = float('inf')
         for i1 in reversed(range(i2)):
-            p1 = np.array(points[i1]['p'])
-            p2 = np.array(points[i2]['p'])
-            seglength = la.norm(p2 - p1)
+            p1 = points[i1]['p']
+            p2 = points[i2]['p']
+            seglength = norm (vmin (p2, p1))
             
             # estimate speed between p1 and p2
             if timesteps != None:
@@ -186,8 +189,8 @@ def reduced_track_indices(coordinate_list, timesteps=None):
             distances_squared = []
             # iterate all medium points between i1 and i2
             for im in range(i1+1, i2):
-                pm = np.array(points[im]['p'])
-                d = distance(p1, pm, p2, options.ele_weight)
+                pm = points[im]['p']
+                d = distance (p1, pm, p2, options.ele_weight)
                 if (d <= options.max_dist):
                     d_sq = (d / options.max_dist) ** 2
                     distance_squaremax = max(distance_squaremax, d_sq)
@@ -197,10 +200,10 @@ def reduced_track_indices(coordinate_list, timesteps=None):
                     i1_i2_segment_valid = False
                 
                     # check if connection to any further point i1 is impossible
-                    d1 = np.dot(p1 - p2, p1 - p2)
-                    d2 = np.dot(pm - p2, pm - p2)
+                    d1 = dot (vmin (p1, p2), vmin (p1, p2))
+                    d2 = dot (vmin (pm, p2), vmin (pm, p2))
                     dd = options.max_dist ** 2
-                    d1d2 = np.dot(p1 - p2, pm - p2)
+                    d1d2 = dot (vmin (p1, p2), vmin (pm, p2))
                     # formula from cosines of point separation angle and cone-opening angles around points
                     if (d1 > dd and d2 > dd and (d1d2 + dd)**2 < (d2 - dd) * (d1 - dd)):
                         lower_i1_possible = False
@@ -227,13 +230,13 @@ def reduced_track_indices(coordinate_list, timesteps=None):
                 # add a penalty for kinks
                 if options.bend > 0.:
                     if points[i1]['prev'] != -1:
-                        p0 = np.array(points[points[i1]['prev']]['p'])
-                        v0 = p1 - p0
-                        v1 = p2 - p1
-                        if la.norm(v0) > 0. and la.norm(v1) > 0.:
-                            v0 /= la.norm(v0)
-                            v1 /= la.norm(v1)
-                            kink = (1.0 - np.dot(v0, v1)) / 2.0
+                        p0 = points [points [i1]['prev']] ['p']
+                        v0 = vmin (p1, p0)
+                        v1 = vmin (p2, p1)
+                        if norm (v0) > 0. and norm (v1) > 0.:
+                            v0 = sdiv (v0, norm (v0))
+                            v1 = sdiv (v1, norm (v1))
+                            kink = (1.0 - dot (v0, v1)) / 2.0
                             penalties[i1] += options.bend * kink
         
         # find best predecessor
