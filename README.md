@@ -13,7 +13,7 @@ Usage example:
 Gnuplot has to be installed and the path to the binary has to be changed in the code
 to reflect your installation:
 
-python```
+```python
 # the path to the gnuplot binary
 gnuPlotCmd = 'path/to/gnuplot'
 ```
