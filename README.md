@@ -18,8 +18,8 @@ to reflect your installation:
 gnuPlotCmd = 'path/to/gnuplot'
 ```
 
->Usage example that compares a reduced track with the original:
+Usage example that compares a reduced track with the original:
 
->>```
+```
 gpx_plot.py your_track.gpx your_track_reduced.gpx
 ```
