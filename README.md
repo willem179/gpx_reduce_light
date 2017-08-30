@@ -4,9 +4,9 @@
 Only the plot option has been removed.
 See [original version](https://github.com/Alezy80/gpx_reduce) for more info.
 
->Usage example:
+Usage example:
 
->>```
+```
 $ gpx_reduce.py -d 2 -t 30 your_track.gpx
 ```
 
@@ -14,7 +14,7 @@ $ gpx_reduce.py -d 2 -t 30 your_track.gpx
 Gnuplot has to be installed and the path to the binary has to be changed in the code
 to reflect your installation:
 
->>```
+```
 gnuPlotCmd = 'path/to/gnuplot'
 ```
 
