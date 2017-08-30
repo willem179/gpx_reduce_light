@@ -4,22 +4,16 @@
 Only the plot option has been removed.
 See [original version](https://github.com/Alezy80/gpx_reduce) for more info.
 
-Usage example:
+    Usage example:
 
-```
-$ gpx_reduce.py -d 2 -t 30 your_track.gpx
-```
+        > gpx_reduce.py -d 2 -t 30 your_track.gpx
 
 * gpx_plot.py, a separate program to plot one or more tracks with "gnuplot".  
 Gnuplot has to be installed and the path to the binary has to be changed in the code
 to reflect your installation:
 
-```
-gnuPlotCmd = 'path/to/gnuplot'
-```
+        gnuPlotCmd = 'path/to/gnuplot'
 
-Usage example that compares a reduced track with the original:
+    Usage example that compares a reduced track with the original:
 
-```
-gpx_plot.py your_track.gpx your_track_reduced.gpx
-```
+        > gpx_plot.py your_track.gpx your_track_reduced.gpx
