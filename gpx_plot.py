@@ -21,24 +21,26 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-import datetime
-import sys
-import time
+import datetime, sys, os, time
 from math import *
 import xml.etree.ElementTree as etree
 from optparse import OptionParser
 
-# the path to the gnuplot binary
-gnuPlotCmd = 'gnuplot'
-
 parser = OptionParser('usage: %prog [options] input-file.gpx')
+parser.add_option('-g', action='store', type='string', dest='gnuplot',
+    default='/usr/bin/gnuplot', help='PATH to the gnuplot binary (or .exe)', metavar='PATH')
 (options, args) = parser.parse_args()
 
+# the path to the gnuplot binary
+gnuPlotCmd = options.gnuplot
+if not os.path.exists (gnuPlotCmd):
+    print gnuPlotCmd, 'does not exist'
+    parser.print_help ()
+    sys.exit ()
 
 if len(args) < 1:
-    parser.print_usage()
-    exit(2)
-
+    parser.print_help ()
+    sys.exit ()
 
 # use the WGS-84 ellipsoid
 rE = 6356752.314245 # earth's radius
@@ -94,8 +96,11 @@ for fname in args:
     ntot = 0    # total number of trackpoints (sum of segments)
     
     # import xml data from files
+    if not os.path.exists (fname):
+        print fname, 'does not exist'
+        continue
     print 'opening file', fname
-    infile = open(fname)
+    infile = open (fname)
     tree = etree.parse(infile)
     infile.close()
 
@@ -161,7 +166,11 @@ else:
     xmin -= dr
 
 from subprocess import Popen, PIPE
-plot = Popen ([gnuPlotCmd], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+try:
+    plot = Popen ([gnuPlotCmd], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+except Exception as e:
+    print e, 'while executing', gnuPlotCmd
+    sys.exit ()
 
 range = 'set xrange [%f:%f]\nset yrange [%f:%f]\n' % (xmin, xmax, ymin, ymax)
 plot.stdin.write (range)
@@ -172,4 +181,4 @@ plot.stdin.write ('plot ' + curves + '\n')
 plot.stdin.write ("\n".join (data))
 plot.stdin.write ('\n')
 plot.stdin.flush ()
-raw_input ('druk')
+raw_input ('press enter to exit program')
