@@ -21,7 +21,7 @@
 
 * gpx_plot.py, a script to plot one or more tracks with [gnuplot][3].
 
-    Gnuplot has to be installed and if the path to the gnuplot executable is not */usr/bin/gnuplot*
+    Gnuplot has to be installed and if the executable "gnuplot" is not in your path
     you have to specify the path with the command line option *-g /path/to/gnuplot*
 
     Usage example that compares a reduced track with the original:

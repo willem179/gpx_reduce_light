@@ -26,15 +26,27 @@ from math import *
 import xml.etree.ElementTree as etree
 from optparse import OptionParser
 
+def which (program):    # test if program is executable or exists in PATH
+    def is_exe (fp): return os.path.isfile (fp) and os.access (fp, os.X_OK)
+    fpath, fname = os.path.split (program)
+    if fpath:
+        if is_exe (program): return program
+    else:
+        for path in os.environ ["PATH"].split (os.pathsep):
+            path = path.strip ('"')
+            exe_file = os.path.join (path, program)
+            if is_exe (exe_file): return exe_file
+    return None
+
 parser = OptionParser('usage: %prog [options] input-file.gpx')
 parser.add_option('-g', action='store', type='string', dest='gnuplot',
-    default='/usr/bin/gnuplot', help='PATH to the gnuplot binary (or .exe)', metavar='PATH')
+    default='gnuplot', help='PATH to the gnuplot binary (or .exe)', metavar='PATH')
 (options, args) = parser.parse_args()
 
-# the path to the gnuplot binary
-gnuPlotCmd = options.gnuplot
-if not os.path.exists (gnuPlotCmd):
-    print gnuPlotCmd, 'does not exist'
+# find gnuplot binary
+gnuPlotCmd = which (options.gnuplot)
+if not gnuPlotCmd:
+    print '***', options.gnuplot, 'does not exist or is not executable\n'
     parser.print_help ()
     sys.exit ()
 
